@@ -1,6 +1,6 @@
 # Tavily 代理池 & 管理面板
 
-简体中文 | [English](./README.md)
+简体中文 | [English](./README_EN.md)
 
 一个透明的 Tavily API 反向代理：将多个 Tavily API Key（额度/credits）汇聚在一个 **Master Key** 之后，并提供内置 Web UI 用于管理 Key、用量与请求日志。
 
@@ -26,9 +26,9 @@
 
 ## 🛠️ 环境要求
 
-- **Go**: `1.21+`
-- **Node.js**: `18+`（仅用于前端 Web UI 构建）
-- **Docker**:（可选，推荐部署方式）
+- **Go**: `1.23+`
+- **Node.js**: `20+`（仅用于前端 Web UI 构建）
+- **Docker**:（推荐部署方式）
 
 ---
 
@@ -42,7 +42,7 @@
 
     _首次启动会自动生成 Master Key，请查看控制台日志。_
 
-2.  **启动前端**:
+2.  **启动 frontend**:
     ```bash
     cd web
     npm install
@@ -56,7 +56,7 @@
 
 ### 1. 编译二进制
 
-使用项目自带脚本进行构建（自动完成前端构建并内嵌）：
+使用项目自带脚本进行构建（需要安装 Go 和 Node.js，脚本会自动完成前端构建并内嵌）：
 
 - **Windows (PowerShell)**:
   ```powershell
@@ -69,19 +69,29 @@
   ```
   编译产物位于 `build/` 目录。
 
-### 2. Docker 部署
+### 2. Docker 部署 (推荐)
 
-1. 按照上述步骤编译出 Linux 版本的二进制文件。
-2. 将以下文件上传至服务器同一目录：
-   - `build/tavily-proxy-linux`
-   - `Dockerfile`
-   - `docker-compose.yml`
-3. 执行部署：
+项目提供多阶段构建的 `Dockerfile`，可自动完成前后端编译。
+
+#### 使用 Docker Compose 构建并运行
+
+1. 确保项目根目录下存在 `docker-compose.yml` 和 `Dockerfile`。
+2. 执行构建并启动：
    ```bash
-   docker-compose up -d
+   docker-compose up -d --build
    ```
 
-> **注意**: `docker-compose.yml` 默认挂载 `/etc/localtime` 以同步时区。如果您在 Windows/macOS 的 Docker Desktop 上运行，建议移除该挂载并手动设置环境变量 `TZ`（如 `TZ=Asia/Shanghai`）。
+#### 使用 Docker 原生命令构建并运行
+```bash
+docker build -t tavily-proxy .
+docker run -d \
+  -p 8080:8080 \
+  -v $(pwd)/data:/app/data \
+  --name tavily-proxy \
+  tavily-proxy
+```
+
+> **注意**: 容器内部默认使用 `/app/data/proxy.db` 存储数据。请务必挂载该目录以实现数据持久化。对于 Windows/macOS 的 Docker Desktop 用户，建议手动设置环境变量 `TZ`（如 `TZ=Asia/Shanghai`）。
 
 ---
 
@@ -135,7 +145,7 @@ curl -X POST "http://localhost:8080/search" \
 | 变量名             | 说明                 | 默认值                   |
 | :----------------- | :------------------- | :----------------------- |
 | `LISTEN_ADDR`      | 服务监听地址         | `:8080`                  |
-| `DB_PATH`          | SQLite 数据库路径    | `./server/data/app.db`   |
+| `DATABASE_PATH`    | SQLite 数据库路径    | `/app/data/proxy.db`     |
 | `TAVILY_BASE_URL`  | 上游 Tavily API 地址 | `https://api.tavily.com` |
 | `UPSTREAM_TIMEOUT` | 上游请求超时时间     | `150s`                   |
 
