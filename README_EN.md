@@ -142,6 +142,9 @@ curl -X POST "http://localhost:8080/search" \
 
 The server provides an HTTP MCP endpoint at `http://localhost:8080/mcp`.
 
+Stateless mode is enabled by default (`MCP_STATELESS=true`) to avoid `session not found` errors.
+If you need stateful sessions, set `MCP_STATELESS=false` and ensure your reverse proxy forwards `Mcp-Session-Id` and uses sticky sessions.
+
 #### VS Code Configuration (with mcp-remote)
 
 ```json
@@ -171,6 +174,8 @@ The server provides an HTTP MCP endpoint at `http://localhost:8080/mcp`.
 | `DATABASE_PATH`    | Path to SQLite database  | `/app/data/proxy.db`     |
 | `TAVILY_BASE_URL`  | Upstream Tavily API URL  | `https://api.tavily.com` |
 | `UPSTREAM_TIMEOUT` | Upstream request timeout | `150s`                   |
+| `MCP_STATELESS`    | Enable stateless MCP mode | `true`                  |
+| `MCP_SESSION_TTL`  | Idle timeout for MCP session | `10m`               |
 
 ---
 

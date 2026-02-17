@@ -142,6 +142,9 @@ curl -X POST "http://localhost:8080/search" \
 
 服务在 `http://localhost:8080/mcp` 提供 HTTP MCP 端点。
 
+默认启用无状态模式（`MCP_STATELESS=true`），可避免客户端出现 `session not found`。
+如需有状态会话，请将 `MCP_STATELESS=false`，并确保上游反向代理正确透传 `Mcp-Session-Id` 且启用会话粘性（sticky）。
+
 #### VS Code 配置示例 (配合 mcp-remote)
 
 ```json
@@ -171,6 +174,8 @@ curl -X POST "http://localhost:8080/search" \
 | `DATABASE_PATH`    | SQLite 数据库路径    | `/app/data/proxy.db`     |
 | `TAVILY_BASE_URL`  | 上游 Tavily API 地址 | `https://api.tavily.com` |
 | `UPSTREAM_TIMEOUT` | 上游请求超时时间     | `150s`                   |
+| `MCP_STATELESS`    | MCP 是否无状态模式   | `true`                   |
+| `MCP_SESSION_TTL`  | MCP 会话空闲超时     | `10m`                    |
 
 ---
 

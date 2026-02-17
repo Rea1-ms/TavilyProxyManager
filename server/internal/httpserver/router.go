@@ -27,8 +27,10 @@ func NewRouter(deps Dependencies) http.Handler {
 	publicFS, _ := fs.Sub(deps.EmbeddedPublic, "public")
 
 	mcpHandler := mcpserver.NewHandler(mcpserver.Dependencies{
-		MasterKey: deps.MasterKeyService,
-		Proxy:     deps.TavilyProxy,
+		MasterKey:  deps.MasterKeyService,
+		Proxy:      deps.TavilyProxy,
+		Stateless:  deps.Config.MCPStateless,
+		SessionTTL: deps.Config.MCPSessionTTL,
 	})
 	r.Any("/mcp", gin.WrapH(mcpHandler))
 

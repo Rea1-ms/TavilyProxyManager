@@ -14,8 +14,10 @@ import (
 )
 
 type Dependencies struct {
-	MasterKey *services.MasterKeyService
-	Proxy     *services.TavilyProxy
+	MasterKey  *services.MasterKeyService
+	Proxy      *services.TavilyProxy
+	Stateless  bool
+	SessionTTL time.Duration
 }
 
 func NewHandler(deps Dependencies) http.Handler {
@@ -53,7 +55,8 @@ func NewHandler(deps Dependencies) http.Handler {
 	base := mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
 		return server
 	}, &mcp.StreamableHTTPOptions{
-		SessionTimeout: 10 * time.Minute,
+		Stateless:      deps.Stateless,
+		SessionTimeout: deps.SessionTTL,
 	})
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
