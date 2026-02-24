@@ -146,12 +146,49 @@
         <n-alert type="info" :show-icon="false" size="small">
           {{ t("keys.batchModal.help") }}
         </n-alert>
+        <input
+          ref="batchFileInput"
+          type="file"
+          accept=".txt,text/plain"
+          style="display: none"
+          @change="onBatchFileChange"
+        />
+        <n-space justify="space-between" align="center">
+          <n-button secondary size="small" @click="openBatchFilePicker">
+            <template #icon>
+              <n-icon :component="CloudUploadOutline" />
+            </template>
+            {{ t("keys.batchModal.uploadTxt") }}
+          </n-button>
+          <span class="batch-key-count">
+            {{ t("keys.batchModal.keyCount", { count: batchKeyCount }) }}
+          </span>
+        </n-space>
         <n-input
           v-model:value="batchText"
           type="textarea"
           placeholder="tvly-...\ntvly-..."
           :autosize="{ minRows: 6, maxRows: 12 }"
         />
+        <n-card v-if="batchJob.status === 'running'" :bordered="false" size="small">
+          <n-space vertical size="small">
+            <div class="sync-job-title">
+              {{
+                t("keys.batchModal.taskProgress", {
+                  completed: batchJob.completed ?? 0,
+                  total: batchJob.total ?? 0,
+                  failed: batchJob.failed ?? 0,
+                })
+              }}
+            </div>
+            <n-progress
+              type="line"
+              :percentage="batchJobPercent"
+              :show-indicator="false"
+              :height="8"
+            />
+          </n-space>
+        </n-card>
         <n-alert
           v-if="batchFailures.length"
           type="error"
@@ -177,13 +214,13 @@
       </n-space>
       <template #footer>
         <n-space justify="end">
-          <n-button :disabled="batchSaving" @click="closeBatchAdd"
+          <n-button :disabled="batchSubmitting" @click="closeBatchAdd"
             >{{ t("common.cancel") }}</n-button
           >
           <n-button
             type="primary"
-            :loading="batchSaving"
-            :disabled="!batchText.trim()"
+            :loading="batchSubmitting"
+            :disabled="batchBusy || batchKeyCount === 0"
             @click="createBatchKeys"
             >{{ t("keys.batchModal.addKeys") }}</n-button
           >
@@ -269,6 +306,7 @@ import {
 } from "naive-ui";
 import {
   AddOutline,
+  CloudUploadOutline,
   CopyOutline,
   CreateOutline,
   DownloadOutline,
@@ -278,7 +316,7 @@ import {
   TrashOutline,
 } from "@vicons/ionicons5";
 import { api } from "../api/client";
-import type { KeyItem } from "../types";
+import type { BatchCreateJob, BatchCreateJobStartResponse, KeyItem } from "../types";
 import { writeClipboardText } from "../utils/clipboard";
 import { t } from "../i18n";
 
@@ -357,8 +395,35 @@ const addForm = reactive<{ key: string; alias: string; total_quota: number }>({
 
 const showBatchAdd = ref(false);
 const batchText = ref("");
-const batchSaving = ref(false);
 const batchFailures = ref<{ key: string; error: string }[]>([]);
+const batchSubmitting = ref(false);
+const batchFileInput = ref<HTMLInputElement | null>(null);
+const batchJob = ref<BatchCreateJob>({ status: "idle" });
+const batchBusy = computed(
+  () => batchSubmitting.value || batchJob.value.status === "running"
+);
+const batchKeyCount = computed(() => parseBatchKeys(batchText.value).length);
+const batchJobPercent = computed(() => {
+  const total = batchJob.value.total ?? 0;
+  const completed = batchJob.value.completed ?? 0;
+  if (total <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.floor((completed / total) * 100)));
+});
+
+let batchJobPoll: number | null = null;
+
+function startBatchJobPolling(): void {
+  if (batchJobPoll != null) return;
+  batchJobPoll = window.setInterval(() => {
+    void loadBatchJob();
+  }, 1000);
+}
+
+function stopBatchJobPolling(): void {
+  if (batchJobPoll == null) return;
+  window.clearInterval(batchJobPoll);
+  batchJobPoll = null;
+}
 
 const showEdit = ref(false);
 const editId = ref<number | null>(null);
@@ -470,16 +535,21 @@ async function createKey() {
 }
 
 function openBatchAdd() {
-  batchText.value = "";
-  batchFailures.value = [];
+  if (batchJob.value.status !== "running") {
+    batchText.value = "";
+    batchFailures.value = [];
+  }
   showBatchAdd.value = true;
+  void loadBatchJob();
 }
 
 function closeBatchAdd() {
-  if (batchSaving.value) return;
+  if (batchSubmitting.value) return;
   showBatchAdd.value = false;
-  batchText.value = "";
-  batchFailures.value = [];
+  if (batchJob.value.status !== "running") {
+    batchText.value = "";
+    batchFailures.value = [];
+  }
 }
 
 function parseBatchKeys(input: string): string[] {
@@ -495,6 +565,83 @@ function parseBatchKeys(input: string): string[] {
   return out;
 }
 
+function mergeBatchKeyText(existing: string, incoming: string): string {
+  return parseBatchKeys(`${existing}\n${incoming}`).join("\n");
+}
+
+function openBatchFilePicker() {
+  if (batchBusy.value) return;
+  batchFileInput.value?.click();
+}
+
+async function onBatchFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    const content = await file.text();
+    const keys = parseBatchKeys(content);
+    if (keys.length === 0) {
+      message.warning(t("keys.batchModal.noKeysInFile"));
+      return;
+    }
+
+    batchText.value = mergeBatchKeyText(batchText.value, content);
+    message.success(t("keys.batchModal.uploadedKeys", { count: keys.length }));
+  } catch {
+    message.error(t("keys.batchModal.uploadFailed"));
+  } finally {
+    input.value = "";
+  }
+}
+
+async function loadBatchJob(): Promise<void> {
+  try {
+    const prev = batchJob.value;
+    const { data } = await api.get<BatchCreateJob>("/api/keys/batch");
+    batchJob.value = data;
+    batchFailures.value = data.failures ?? [];
+
+    if (data.status === "running") {
+      startBatchJobPolling();
+      return;
+    }
+
+    stopBatchJobPolling();
+
+    const finishedSameJob =
+      prev.status === "running" && prev.id && prev.id === data.id;
+    if (!finishedSameJob) return;
+
+    await refresh();
+
+    if (data.status !== "completed") {
+      message.error(data.error ?? t("keys.errors.batchSubmitFailed"));
+      return;
+    }
+
+    if ((data.failed ?? 0) === 0) {
+      showBatchAdd.value = false;
+      batchText.value = "";
+      message.success(t("keys.messages.addedKeys", { count: data.succeeded ?? 0 }));
+      return;
+    }
+
+    showBatchAdd.value = true;
+    message.warning(
+      t("keys.messages.addedPartial", {
+        succeeded: data.succeeded ?? 0,
+        total: data.total ?? 0,
+        failed: data.failed ?? 0,
+      })
+    );
+  } catch (err: any) {
+    stopBatchJobPolling();
+    message.error(err?.response?.data?.error ?? t("keys.errors.batchSubmitFailed"));
+  }
+}
+
 async function createBatchKeys() {
   const keys = parseBatchKeys(batchText.value);
   if (keys.length === 0) {
@@ -502,39 +649,23 @@ async function createBatchKeys() {
     return;
   }
 
-  batchSaving.value = true;
+  batchSubmitting.value = true;
   batchFailures.value = [];
-
-  let succeeded = 0;
-  for (const key of keys) {
-    try {
-      await api.post("/api/keys", { key });
-      succeeded++;
-    } catch (err: any) {
-      batchFailures.value.push({
-        key,
-        error: err?.response?.data?.error ?? t("common.createFailed"),
-      });
+  try {
+    const { data } = await api.post<BatchCreateJobStartResponse>("/api/keys/batch", { keys });
+    batchJob.value = data.job;
+    if (data.already_running) {
+      message.warning(t("keys.messages.batchAlreadyRunning"));
+    } else {
+      message.success(t("keys.messages.batchStarted", { count: keys.length }));
     }
+    startBatchJobPolling();
+    void loadBatchJob();
+  } catch (err: any) {
+    message.error(err?.response?.data?.error ?? t("keys.errors.batchSubmitFailed"));
+  } finally {
+    batchSubmitting.value = false;
   }
-
-  batchSaving.value = false;
-  await refresh();
-
-  if (batchFailures.value.length === 0) {
-    showBatchAdd.value = false;
-    batchText.value = "";
-    message.success(t("keys.messages.addedKeys", { count: succeeded }));
-    return;
-  }
-
-  message.warning(
-    t("keys.messages.addedPartial", {
-      succeeded,
-      total: keys.length,
-      failed: batchFailures.value.length,
-    })
-  );
 }
 
 function openEdit(row: KeyItem) {
@@ -866,9 +997,13 @@ const columns: DataTableColumns<KeyItem> = [
 onMounted(async () => {
   await refresh();
   await loadSyncJob();
+  await loadBatchJob();
 });
 
-onBeforeUnmount(stopSyncJobPolling);
+onBeforeUnmount(() => {
+  stopSyncJobPolling();
+  stopBatchJobPolling();
+});
 </script>
 
 <style scoped>
@@ -935,6 +1070,11 @@ onBeforeUnmount(stopSyncJobPolling);
 
 .batch-error {
   border-radius: 8px;
+}
+
+.batch-key-count {
+  font-size: 12px;
+  color: #666;
 }
 
 .batch-error-list {

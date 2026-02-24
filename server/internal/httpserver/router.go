@@ -43,6 +43,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	{
 		api.GET("/keys", func(c *gin.Context) { handleListKeys(c, deps.KeyService) })
 		api.POST("/keys", func(c *gin.Context) { handleCreateKey(c, deps.KeyService) })
+		api.GET("/keys/batch", func(c *gin.Context) { handleGetBatchCreateKeys(c, deps.KeyBatchCreateJob) })
+		api.POST("/keys/batch", func(c *gin.Context) { handleStartBatchCreateKeys(c, deps.KeyBatchCreateJob) })
 		api.GET("/keys/export", func(c *gin.Context) { handleExportKeys(c, deps.KeyService) })
 		api.GET("/keys/:id/raw", func(c *gin.Context) { handleGetKeyRaw(c, deps.KeyService, c.Param("id")) })
 		api.GET("/keys/sync", func(c *gin.Context) { handleGetSyncAllKeys(c, deps.QuotaSyncJob) })

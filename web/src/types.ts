@@ -25,6 +25,29 @@ export type KeyItem = {
   created_at?: string
 }
 
+export type BatchCreateFailure = {
+  key: string
+  error: string
+}
+
+export type BatchCreateJob = {
+  id?: string
+  status: "idle" | "running" | "completed" | "error"
+  error?: string
+  total?: number
+  completed?: number
+  succeeded?: number
+  failed?: number
+  failures?: BatchCreateFailure[]
+  started_at?: string
+  ended_at?: string
+}
+
+export type BatchCreateJobStartResponse = {
+  job: BatchCreateJob
+  already_running: boolean
+}
+
 export type LogItem = {
   id: number
   request_id: string

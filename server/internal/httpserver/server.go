@@ -19,6 +19,7 @@ type Dependencies struct {
 	DistributedRateLimiter     *services.DistributedRateLimiter
 	SettingsService            *services.SettingsService
 	KeyService                 *services.KeyService
+	KeyBatchCreateJob          *services.KeyBatchCreateJobService
 	QuotaSyncService           *services.QuotaSyncService
 	QuotaSyncJob               *services.QuotaSyncJobService
 	LogService                 *services.LogService

@@ -84,6 +84,13 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "keys.addModal.createKey": "Create Key",
     "keys.batchModal.title": "Batch Add API Keys",
     "keys.batchModal.help": "Paste one Tavily API key per line.",
+    "keys.batchModal.uploadTxt": "Upload TXT",
+    "keys.batchModal.keyCount": "{count} key(s) parsed",
+    "keys.batchModal.taskProgress":
+      "Importing: {completed}/{total} (failed: {failed})",
+    "keys.batchModal.uploadFailed": "Failed to read TXT file",
+    "keys.batchModal.noKeysInFile": "No valid keys found in TXT file",
+    "keys.batchModal.uploadedKeys": "Loaded {count} key(s) from TXT",
     "keys.batchModal.failedHeader": "Failed to add {count} key(s).",
     "keys.batchModal.addKeys": "Add Keys",
     "keys.editModal.title": "Edit Key",
@@ -95,6 +102,7 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "keys.errors.loadKeys": "Failed to load keys",
     "keys.errors.needAtLeastOneKey": "Please enter at least one key",
     "keys.errors.syncAllFailed": "Sync all failed",
+    "keys.errors.batchSubmitFailed": "Batch task submission failed",
     "keys.errors.exportFailed": "Export failed",
     "keys.messages.syncAllStarted": "Sync started in background",
     "keys.messages.syncAllProgress":
@@ -103,6 +111,10 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
       "Synced: {succeeded}/{total} (failed: {failed})",
     "keys.messages.exported": "Exported {count} key(s)",
     "keys.messages.keyAdded": "Key added",
+    "keys.messages.batchStarted":
+      "Batch import task submitted ({count} key(s))",
+    "keys.messages.batchAlreadyRunning":
+      "A batch import task is already running",
     "keys.messages.addedKeys": "Added {count} keys",
     "keys.messages.addedPartial":
       "Added {succeeded}/{total} keys (failed: {failed})",
@@ -312,6 +324,13 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "keys.addModal.createKey": "创建密钥",
     "keys.batchModal.title": "批量添加 API 密钥",
     "keys.batchModal.help": "每行粘贴一个 Tavily API 密钥。",
+    "keys.batchModal.uploadTxt": "上传 TXT",
+    "keys.batchModal.keyCount": "已解析 {count} 个密钥",
+    "keys.batchModal.taskProgress":
+      "导入中：{completed}/{total}（失败：{failed}）",
+    "keys.batchModal.uploadFailed": "读取 TXT 文件失败",
+    "keys.batchModal.noKeysInFile": "TXT 文件中没有有效密钥",
+    "keys.batchModal.uploadedKeys": "已从 TXT 载入 {count} 个密钥",
     "keys.batchModal.failedHeader": "添加失败 {count} 个密钥。",
     "keys.batchModal.addKeys": "添加",
     "keys.editModal.title": "编辑密钥",
@@ -323,6 +342,7 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "keys.errors.loadKeys": "密钥加载失败",
     "keys.errors.needAtLeastOneKey": "请至少输入一个密钥",
     "keys.errors.syncAllFailed": "同步全部失败",
+    "keys.errors.batchSubmitFailed": "批量任务提交失败",
     "keys.errors.exportFailed": "导出失败",
     "keys.messages.syncAllStarted": "已在后台开始同步",
     "keys.messages.syncAllProgress":
@@ -331,6 +351,8 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
       "同步完成：{succeeded}/{total}（失败：{failed}）",
     "keys.messages.exported": "已导出 {count} 个密钥",
     "keys.messages.keyAdded": "已添加密钥",
+    "keys.messages.batchStarted": "已提交批量导入任务（{count} 个密钥）",
+    "keys.messages.batchAlreadyRunning": "已有批量导入任务正在执行",
     "keys.messages.addedKeys": "已添加 {count} 个密钥",
     "keys.messages.addedPartial":
       "已添加 {succeeded}/{total} 个密钥（失败：{failed}）",

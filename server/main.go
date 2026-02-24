@@ -63,6 +63,7 @@ func main() {
 
 	tavilyProxy := services.NewTavilyProxy(cfg.TavilyBaseURL, cfg.UpstreamTimeout, keyService, logService, statsService, logger).
 		WithSettings(settingsService)
+	keyBatchCreateJob := services.NewKeyBatchCreateJobService(keyService, logger)
 	quotaSyncService := services.NewQuotaSyncService(keyService, tavilyProxy, logger)
 	quotaSyncJob := services.NewQuotaSyncJobService(keyService, quotaSyncService, logger)
 
@@ -75,6 +76,7 @@ func main() {
 		DistributedRateLimiter:     distributedRateLimiter,
 		SettingsService:            settingsService,
 		KeyService:                 keyService,
+		KeyBatchCreateJob:          keyBatchCreateJob,
 		QuotaSyncService:           quotaSyncService,
 		QuotaSyncJob:               quotaSyncJob,
 		LogService:                 logService,
