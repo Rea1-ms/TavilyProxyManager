@@ -25,6 +25,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(gin.Logger(), gin.Recovery())
 
 	publicFS, _ := fs.Sub(deps.EmbeddedPublic, "public")
+	frontendReady := hasEmbeddedAssets(publicFS)
 
 	mcpHandler := mcpserver.NewHandler(mcpserver.Dependencies{
 		MasterKey:  deps.MasterKeyService,
@@ -55,6 +56,25 @@ func NewRouter(deps Dependencies) http.Handler {
 		api.DELETE("/logs", func(c *gin.Context) { handleClearLogs(c, deps.LogService) })
 		api.GET("/stats", func(c *gin.Context) { handleStats(c, deps.StatsService) })
 		api.GET("/stats/timeseries", func(c *gin.Context) { handleTimeSeries(c, deps.StatsService) })
+
+		api.GET("/distributed-keys", func(c *gin.Context) {
+			handleListDistributedKeys(c, deps.DistributedKeyService, deps.DistributedKeyUsageService)
+		})
+		api.POST("/distributed-keys", func(c *gin.Context) {
+			handleCreateDistributedKey(c, deps.DistributedKeyService)
+		})
+		api.PUT("/distributed-keys/:id", func(c *gin.Context) {
+			handleUpdateDistributedKey(c, deps.DistributedKeyService, c.Param("id"))
+		})
+		api.POST("/distributed-keys/:id/rotate", func(c *gin.Context) {
+			handleRotateDistributedKey(c, deps.DistributedKeyService, c.Param("id"))
+		})
+		api.DELETE("/distributed-keys/:id", func(c *gin.Context) {
+			handleDeleteDistributedKey(c, deps.DistributedKeyService, c.Param("id"))
+		})
+		api.GET("/distributed-keys/:id/stats", func(c *gin.Context) {
+			handleDistributedKeyStats(c, deps.DistributedKeyService, deps.DistributedKeyUsageService, c.Param("id"))
+		})
 
 		api.GET("/settings/master-key", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"master_key": deps.MasterKeyService.Get()})
@@ -96,6 +116,34 @@ func NewRouter(deps Dependencies) http.Handler {
 			handleProxy(c, deps.TavilyProxy, sanitizedBody, sanitizedQuery)
 			return
 		}
+		if authHeaderToken != "" && deps.DistributedKeyService != nil {
+			now := time.Now().UTC()
+			distributedKey, err := deps.DistributedKeyService.AuthenticateBearer(c.Request.Context(), authHeaderToken, now)
+			if err == nil {
+				if deps.DistributedRateLimiter != nil && !deps.DistributedRateLimiter.Allow(distributedKey.ID, distributedKey.RateLimitPerMinute, now) {
+					c.JSON(http.StatusTooManyRequests, gin.H{"error": "rate_limited"})
+					if deps.DistributedKeyUsageService != nil {
+						_ = deps.DistributedKeyUsageService.Record(c.Request.Context(), distributedKey.ID, http.StatusTooManyRequests, now)
+					}
+					return
+				}
+
+				statusCode := handleProxy(c, deps.TavilyProxy, sanitizedBody, sanitizedQuery)
+				if deps.DistributedKeyUsageService != nil {
+					_ = deps.DistributedKeyUsageService.Record(c.Request.Context(), distributedKey.ID, statusCode, now)
+				}
+				_ = deps.DistributedKeyService.TouchLastUsed(c.Request.Context(), distributedKey.ID, now)
+				return
+			}
+			if errors.Is(err, services.ErrDistributedKeyDisabled) {
+				respondUnauthorizedWithError(c, "key_disabled")
+				return
+			}
+			if errors.Is(err, services.ErrDistributedKeyExpired) {
+				respondUnauthorizedWithError(c, "key_expired")
+				return
+			}
+		}
 		if hasCredential {
 			respondUnauthorized(c)
 			return
@@ -107,6 +155,10 @@ func NewRouter(deps Dependencies) http.Handler {
 		}
 		if !acceptsHTML(c.Request) {
 			respondUnauthorized(c)
+			return
+		}
+		if !frontendReady {
+			serveFrontendNotReadyPage(c)
 			return
 		}
 		serveEmbeddedFile(c, publicFS, "index.html")
@@ -129,6 +181,10 @@ func masterAuthMiddleware(master *services.MasterKeyService) gin.HandlerFunc {
 
 func respondUnauthorized(c *gin.Context) {
 	c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+}
+
+func respondUnauthorizedWithError(c *gin.Context, code string) {
+	c.JSON(http.StatusUnauthorized, gin.H{"error": code})
 }
 
 func parseBearerToken(authHeader string) string {
@@ -180,7 +236,9 @@ func serveEmbeddedFile(c *gin.Context, publicFS fs.FS, filePath string) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	stat, err := f.Stat()
 	if err == nil && stat.IsDir() {
@@ -195,6 +253,43 @@ func serveEmbeddedFile(c *gin.Context, publicFS fs.FS, filePath string) {
 	}
 
 	c.Data(http.StatusOK, contentTypeByExt(filePath), data)
+}
+
+func hasEmbeddedAssets(publicFS fs.FS) bool {
+	entries, err := fs.ReadDir(publicFS, "assets")
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+func serveFrontendNotReadyPage(c *gin.Context) {
+	const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frontend Not Built</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.5; }
+      code { background: #f4f4f5; padding: 2px 6px; border-radius: 4px; }
+      pre { background: #111827; color: #f9fafb; padding: 12px; border-radius: 8px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>Frontend assets not found</h1>
+    <p>Build the web UI and sync files into <code>server/public</code>.</p>
+    <pre>./scripts/build.ps1
+# or
+./scripts/build.sh</pre>
+  </body>
+</html>`
+	c.Data(http.StatusServiceUnavailable, "text/html; charset=utf-8", []byte(html))
 }
 
 func contentTypeByExt(p string) string {
@@ -664,7 +759,7 @@ func handleTimeSeries(c *gin.Context, stats *services.StatsService) {
 	c.JSON(http.StatusOK, out)
 }
 
-func handleProxy(c *gin.Context, proxy *services.TavilyProxy, body []byte, rawQuery string) {
+func handleProxy(c *gin.Context, proxy *services.TavilyProxy, body []byte, rawQuery string) int {
 	resp, err := proxy.Do(c.Request.Context(), services.ProxyRequest{
 		Method:      c.Request.Method,
 		Path:        c.Request.URL.Path,
@@ -680,10 +775,10 @@ func handleProxy(c *gin.Context, proxy *services.TavilyProxy, body []byte, rawQu
 				"error":   "no_available_keys",
 				"message": "No active Tavily API keys with remaining quota.",
 			})
-			return
+			return http.StatusServiceUnavailable
 		}
 		c.JSON(http.StatusBadGateway, gin.H{"error": "upstream_error"})
-		return
+		return http.StatusBadGateway
 	}
 
 	for k, vv := range resp.Headers {
@@ -701,6 +796,7 @@ func handleProxy(c *gin.Context, proxy *services.TavilyProxy, body []byte, rawQu
 
 	c.Status(resp.StatusCode)
 	_, _ = io.Copy(c.Writer, bytes.NewReader(resp.Body))
+	return resp.StatusCode
 }
 
 func isHopByHopHeader(k string) bool {

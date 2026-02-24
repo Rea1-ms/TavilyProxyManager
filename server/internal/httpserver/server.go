@@ -11,17 +11,20 @@ import (
 )
 
 type Dependencies struct {
-	Config           config.Config
-	EmbeddedPublic   embed.FS
-	MasterKeyService *services.MasterKeyService
-	SettingsService  *services.SettingsService
-	KeyService       *services.KeyService
-	QuotaSyncService *services.QuotaSyncService
-	QuotaSyncJob     *services.QuotaSyncJobService
-	LogService       *services.LogService
-	StatsService     *services.StatsService
-	TavilyProxy      *services.TavilyProxy
-	Logger           *slog.Logger
+	Config                     config.Config
+	EmbeddedPublic             embed.FS
+	MasterKeyService           *services.MasterKeyService
+	DistributedKeyService      *services.DistributedKeyService
+	DistributedKeyUsageService *services.DistributedKeyUsageService
+	DistributedRateLimiter     *services.DistributedRateLimiter
+	SettingsService            *services.SettingsService
+	KeyService                 *services.KeyService
+	QuotaSyncService           *services.QuotaSyncService
+	QuotaSyncJob               *services.QuotaSyncJobService
+	LogService                 *services.LogService
+	StatsService               *services.StatsService
+	TavilyProxy                *services.TavilyProxy
+	Logger                     *slog.Logger
 }
 
 func New(deps Dependencies) *http.Server {

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"tavily-proxy/server/internal/models"
@@ -29,21 +30,35 @@ func NewMasterKeyService(db *gorm.DB, logger *slog.Logger) *MasterKeyService {
 }
 
 func (s *MasterKeyService) LoadOrCreate(ctx context.Context) error {
+	return s.LoadOrCreateWithDefault(ctx, "")
+}
+
+func (s *MasterKeyService) LoadOrCreateWithDefault(ctx context.Context, preferred string) error {
 	var setting models.Setting
 	err := s.db.WithContext(ctx).First(&setting, "key = ?", masterKeySettingKey).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
+
+	preferred = strings.TrimSpace(preferred)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		newKey, err := generateSecret(32)
-		if err != nil {
-			return err
+		masterKey := preferred
+		if masterKey == "" {
+			var genErr error
+			masterKey, genErr = generateSecret(32)
+			if genErr != nil {
+				return genErr
+			}
+			s.logger.Info("generated master key", "master_key", masterKey)
+		} else {
+			s.logger.Info("initialized master key from environment")
 		}
-		setting = models.Setting{Key: masterKeySettingKey, Value: newKey}
+		setting = models.Setting{Key: masterKeySettingKey, Value: masterKey}
 		if err := s.db.WithContext(ctx).Create(&setting).Error; err != nil {
 			return err
 		}
-		s.logger.Info("generated master key", "master_key", newKey)
+	} else if preferred != "" && preferred != setting.Value {
+		s.logger.Info("MASTER_KEY ignored because master key already exists in database")
 	}
 
 	s.mu.Lock()
@@ -91,4 +106,3 @@ func generateSecret(bytes int) (string, error) {
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
-

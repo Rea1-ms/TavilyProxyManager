@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,7 +31,7 @@ func main() {
 	}
 
 	masterKeyService := services.NewMasterKeyService(database, logger)
-	if err := masterKeyService.LoadOrCreate(context.Background()); err != nil {
+	if err := masterKeyService.LoadOrCreateWithDefault(context.Background(), cfg.MasterKey); err != nil {
 		logger.Error("master key init failed", "err", err)
 		os.Exit(1)
 	}
@@ -39,6 +40,22 @@ func main() {
 	keyService := services.NewKeyService(database, logger)
 	logService := services.NewLogService(database, logger)
 	statsService := services.NewStatsService(database)
+
+	var distributedKeyService *services.DistributedKeyService
+	var distributedKeyUsageService *services.DistributedKeyUsageService
+	var distributedRateLimiter *services.DistributedRateLimiter
+	if strings.TrimSpace(cfg.UserKeyEncryptionKey) == "" {
+		logger.Info("distributed user key feature disabled: USER_KEY_ENCRYPTION_KEY not set")
+	} else {
+		userKeyCipher, err := services.NewTokenCipher(cfg.UserKeyEncryptionKey)
+		if err != nil {
+			logger.Error("user key cipher init failed", "err", err)
+			os.Exit(1)
+		}
+		distributedKeyService = services.NewDistributedKeyService(database, logger, userKeyCipher, cfg.UserKeyRateLimitDefault)
+		distributedKeyUsageService = services.NewDistributedKeyUsageService(database)
+		distributedRateLimiter = services.NewDistributedRateLimiter(cfg.UserKeyRateLimitWindow)
+	}
 
 	if err := statsService.BackfillFromLogsIfEmpty(context.Background()); err != nil {
 		logger.Error("stats backfill failed", "err", err)
@@ -50,17 +67,20 @@ func main() {
 	quotaSyncJob := services.NewQuotaSyncJobService(keyService, quotaSyncService, logger)
 
 	srv := httpserver.New(httpserver.Dependencies{
-		Config:           cfg,
-		EmbeddedPublic:   embeddedPublic,
-		MasterKeyService: masterKeyService,
-		SettingsService:  settingsService,
-		KeyService:       keyService,
-		QuotaSyncService: quotaSyncService,
-		QuotaSyncJob:     quotaSyncJob,
-		LogService:       logService,
-		StatsService:     statsService,
-		TavilyProxy:      tavilyProxy,
-		Logger:           logger,
+		Config:                     cfg,
+		EmbeddedPublic:             embeddedPublic,
+		MasterKeyService:           masterKeyService,
+		DistributedKeyService:      distributedKeyService,
+		DistributedKeyUsageService: distributedKeyUsageService,
+		DistributedRateLimiter:     distributedRateLimiter,
+		SettingsService:            settingsService,
+		KeyService:                 keyService,
+		QuotaSyncService:           quotaSyncService,
+		QuotaSyncJob:               quotaSyncJob,
+		LogService:                 logService,
+		StatsService:               statsService,
+		TavilyProxy:                tavilyProxy,
+		Logger:                     logger,
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

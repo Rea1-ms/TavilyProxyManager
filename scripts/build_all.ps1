@@ -1,8 +1,13 @@
 # Building web frontend...
 Write-Host "Building web frontend..."
 Set-Location "$PSScriptRoot/../web"
-npm install
-npm run build
+if (Get-Command bun -ErrorAction SilentlyContinue) {
+    bun install
+    bun run build
+} else {
+    npm install
+    npm run build
+}
 
 # Preparing server public directory...
 Write-Host "Preparing server public directory..."

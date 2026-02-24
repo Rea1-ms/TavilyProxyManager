@@ -45,3 +45,39 @@ export type LogStatusCount = {
   status_code: number
   count: number
 }
+
+export type DistributedKeyItem = {
+  id: number
+  name: string
+  note: string
+  key_prefix: string
+  is_active: boolean
+  expires_at?: string | null
+  rate_limit_per_minute: number
+  last_used_at?: string | null
+  created_at: string
+  total_count: number
+  status_2xx: number
+  status_4xx: number
+  status_5xx: number
+}
+
+export type DistributedKeyUsagePoint = {
+  date: string
+  total_count: number
+  status_2xx: number
+  status_4xx: number
+  status_5xx: number
+}
+
+export type DistributedKeyStats = {
+  item: Omit<DistributedKeyItem, "total_count" | "status_2xx" | "status_4xx" | "status_5xx">
+  totals: {
+    total_count: number
+    status_2xx: number
+    status_4xx: number
+    status_5xx: number
+  }
+  series: DistributedKeyUsagePoint[]
+  days: number
+}

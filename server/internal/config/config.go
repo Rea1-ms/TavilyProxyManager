@@ -7,12 +7,16 @@ import (
 )
 
 type Config struct {
-	ListenAddr      string
-	DatabasePath    string
-	TavilyBaseURL   string
-	UpstreamTimeout time.Duration
-	MCPStateless    bool
-	MCPSessionTTL   time.Duration
+	ListenAddr              string
+	DatabasePath            string
+	TavilyBaseURL           string
+	UpstreamTimeout         time.Duration
+	MCPStateless            bool
+	MCPSessionTTL           time.Duration
+	MasterKey               string
+	UserKeyEncryptionKey    string
+	UserKeyRateLimitWindow  time.Duration
+	UserKeyRateLimitDefault int
 }
 
 func FromEnv() Config {
@@ -27,14 +31,28 @@ func FromEnv() Config {
 	timeout := getenvDuration("UPSTREAM_TIMEOUT", 150*time.Second)
 	mcpStateless := getenvBool("MCP_STATELESS", true)
 	mcpSessionTTL := getenvDuration("MCP_SESSION_TTL", 10*time.Minute)
+	masterKey := getenv("MASTER_KEY", "")
+	userKeyEncryptionKey := getenv("USER_KEY_ENCRYPTION_KEY", "")
+	userKeyRateLimitWindow := getenvDuration("USER_KEY_RATE_LIMIT_WINDOW", time.Minute)
+	userKeyRateLimitDefault := getenvInt("USER_KEY_RATE_LIMIT_DEFAULT", 60)
+	if userKeyRateLimitDefault < 0 {
+		userKeyRateLimitDefault = 0
+	}
+	if userKeyRateLimitWindow <= 0 {
+		userKeyRateLimitWindow = time.Minute
+	}
 
 	return Config{
-		ListenAddr:      listenAddr,
-		DatabasePath:    dbPath,
-		TavilyBaseURL:   baseURL,
-		UpstreamTimeout: timeout,
-		MCPStateless:    mcpStateless,
-		MCPSessionTTL:   mcpSessionTTL,
+		ListenAddr:              listenAddr,
+		DatabasePath:            dbPath,
+		TavilyBaseURL:           baseURL,
+		UpstreamTimeout:         timeout,
+		MCPStateless:            mcpStateless,
+		MCPSessionTTL:           mcpSessionTTL,
+		MasterKey:               masterKey,
+		UserKeyEncryptionKey:    userKeyEncryptionKey,
+		UserKeyRateLimitWindow:  userKeyRateLimitWindow,
+		UserKeyRateLimitDefault: userKeyRateLimitDefault,
 	}
 }
 
@@ -69,6 +87,15 @@ func getenvDuration(key string, def time.Duration) time.Duration {
 func getenvBool(key string, def bool) bool {
 	if v := os.Getenv(key); v != "" {
 		if parsed, err := strconv.ParseBool(v); err == nil {
+			return parsed
+		}
+	}
+	return def
+}
+
+func getenvInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
 			return parsed
 		}
 	}

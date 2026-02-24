@@ -10,6 +10,10 @@ A transparent reverse proxy for the Tavily API that aggregates multiple Tavily A
 
 - **Transparent Proxy**: Seamlessly forwards requests to `https://api.tavily.com` (supports all endpoints/methods).
 - **Master Key Authentication**: Secure access via `Authorization: Bearer <MasterKey>`.
+- **Distributed User Keys**:
+  - Create invocation-only user keys in the dashboard (with note, disable, and expiration support).
+  - Per-key independent rate limit (`rate_limit_per_minute`, where `0` means unlimited).
+  - Per-key usage analytics (total calls + 2xx/4xx/5xx breakdown).
 - **Intelligent Key Pooling**:
   - Prioritizes keys with the highest remaining quota.
   - Randomly distributes requests among keys with equal quota to prevent rate limiting.
@@ -27,7 +31,7 @@ A transparent reverse proxy for the Tavily API that aggregates multiple Tavily A
 ## 🛠️ Requirements
 
 - **Docker / Docker Compose** (Recommended deployment method, no local environment needed)
-- **Go**: `1.23+` & **Node.js**: `20+` (Only for manual builds)
+- **Go**: `1.23+` & **Bun**: `1.2+` (or **Node.js**: `20+`, only for manual builds)
 
 ---
 
@@ -52,6 +56,8 @@ services:
       - DATABASE_PATH=/app/data/proxy.db
       - TAVILY_BASE_URL=https://api.tavily.com
       - UPSTREAM_TIMEOUT=30s
+      - MASTER_KEY=replace_with_your_master_key
+      - USER_KEY_ENCRYPTION_KEY=replace_with_32_byte_or_base64_key
     volumes:
       - ./data:/app/data
       - /etc/localtime:/etc/localtime:ro
@@ -72,6 +78,8 @@ docker run -d \
   -p 8080:8080 \
   -v $(pwd)/data:/app/data \
   -e DATABASE_PATH=/app/data/proxy.db \
+  -e MASTER_KEY=replace_with_your_master_key \
+  -e USER_KEY_ENCRYPTION_KEY=replace_with_32_byte_or_base64_key \
   ghcr.io/xuncv/tavilyproxymanager:main
 ```
 
@@ -79,7 +87,12 @@ docker run -d \
 
 ## 🔑 First Run: Obtaining the Master Key
 
-The service automatically generates a random **Master Key** during its **first startup**. This key is required to log into the dashboard and authenticate API calls.
+On **first startup**:
+
+- If `MASTER_KEY` is provided, it is used as the initial Master Key.
+- If `MASTER_KEY` is not provided, the service generates a random Master Key.
+
+This key is required to log into the dashboard and authenticate API calls.
 
 You can retrieve it by checking the container logs:
 
@@ -104,7 +117,7 @@ If you need to modify the code and build it yourself:
     ```
 2.  **Start Frontend**:
     ```bash
-    cd web && npm install && npm run dev
+    cd web && bun install && bun run dev
     ```
 
 **Manual Binary Build**:
@@ -135,8 +148,20 @@ curl -X POST "http://localhost:8080/search" \
 
 **Compatibility Notes**:
 
-- Supports `{"api_key": "<MASTER_KEY>"}` or `{"apiKey": "<MASTER_KEY>"}` in JSON bodies.
-- Supports the `api_key=<MASTER_KEY>` GET parameter.
+- `Master Key` supports `{"api_key": "<MASTER_KEY>"}` or `{"apiKey": "<MASTER_KEY>"}` in JSON bodies.
+- `Master Key` supports the `api_key=<MASTER_KEY>` query parameter.
+- `User Key` supports only `Authorization: Bearer <USER_KEY>` (no body/query auth).
+
+### Calling with a Distributed User Key
+
+After creating a user key in the dashboard, call the proxy like this:
+
+```bash
+curl -X POST "http://localhost:8080/search" \
+  -H "Authorization: Bearer <USER_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "AI agent security practices", "search_depth": "basic"}'
+```
 
 ### MCP (Model Context Protocol)
 
@@ -176,6 +201,27 @@ If you need stateful sessions, set `MCP_STATELESS=false` and ensure your reverse
 | `UPSTREAM_TIMEOUT` | Upstream request timeout | `150s`                   |
 | `MCP_STATELESS`    | Enable stateless MCP mode | `true`                  |
 | `MCP_SESSION_TTL`  | Idle timeout for MCP session | `10m`               |
+| `MASTER_KEY` | Optional initial Master Key on first startup (ignored if DB already has one) | empty |
+| `USER_KEY_ENCRYPTION_KEY` | Encryption key for distributed user keys (only needed when this feature is enabled) | empty (feature disabled if missing) |
+| `USER_KEY_RATE_LIMIT_WINDOW` | User-key rate-limit window | `1m` |
+| `USER_KEY_RATE_LIMIT_DEFAULT` | Default per-minute limit for newly created user keys (`0` = unlimited) | `60` |
+
+### `USER_KEY_ENCRYPTION_KEY` Requirements
+
+- Optional; leave empty to disable distributed user-key feature.
+- If set, it must satisfy one of:
+  - Raw key byte length is `16` / `24` / `32` (AES-128/192/256).
+  - Base64 / Base64URL decoded byte length is `16` / `24` / `32`.
+- If provided with invalid length, startup fails with an error.
+- Recommended: use a random `32`-byte key (AES-256), stored as Base64.
+
+PowerShell example to generate a random 32-byte Base64 key:
+
+```powershell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
 
 ---
 

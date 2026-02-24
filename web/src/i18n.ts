@@ -12,6 +12,7 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "app.invalidMasterKey": "Invalid master key",
     "app.menu.dashboard": "Dashboard",
     "app.menu.keys": "Key Management",
+    "app.menu.distributedKeys": "User Keys",
     "app.menu.logs": "Logs",
     "app.menu.settings": "Settings",
     "app.menu.logout": "Logout",
@@ -188,6 +189,52 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "settings.messages.updated": "Settings updated successfully",
     "settings.messages.masterKeyReset": "Master key reset successfully",
 
+    "distributedKeys.title": "User Key Management",
+    "distributedKeys.subtitle":
+      "Create and distribute user keys with per-key rate limit and usage stats.",
+    "distributedKeys.refresh": "Refresh",
+    "distributedKeys.create": "Create User Key",
+    "distributedKeys.unlimited": "Unlimited",
+    "distributedKeys.expiresAt": "Expires",
+    "distributedKeys.neverExpires": "Never Expires",
+    "distributedKeys.expired": "Expired",
+    "distributedKeys.table.name": "Name",
+    "distributedKeys.table.keyPrefix": "Key Prefix",
+    "distributedKeys.table.rateLimit": "Rate Limit",
+    "distributedKeys.table.status": "Status",
+    "distributedKeys.table.usage": "Usage",
+    "distributedKeys.table.actions": "Actions",
+    "distributedKeys.form.name": "Name",
+    "distributedKeys.form.note": "Note",
+    "distributedKeys.form.rateLimit": "Rate Limit (per minute, 0 = unlimited)",
+    "distributedKeys.form.expiresAt": "Expires At",
+    "distributedKeys.form.clearExpiresAt": "Clear expiration",
+    "distributedKeys.createModal.title": "Create User Key",
+    "distributedKeys.createModal.submit": "Create",
+    "distributedKeys.editModal.title": "Edit User Key",
+    "distributedKeys.editModal.submit": "Save",
+    "distributedKeys.secretModal.title": "User Key (Show Once)",
+    "distributedKeys.secretModal.warning":
+      "This key is shown once only. Copy and store it securely now.",
+    "distributedKeys.stats.title": "User Key Stats",
+    "distributedKeys.stats.total": "Total",
+    "distributedKeys.stats.days": "Range",
+    "distributedKeys.units.perMinute": "/min",
+    "distributedKeys.confirm.rotate":
+      "Rotate this key now? The old key will be invalid immediately.",
+    "distributedKeys.confirm.delete":
+      "Delete this key? This action cannot be undone.",
+    "distributedKeys.messages.created": "User key created",
+    "distributedKeys.messages.updated": "User key updated",
+    "distributedKeys.messages.rotated": "User key rotated",
+    "distributedKeys.messages.deleted": "User key deleted",
+    "distributedKeys.errors.load": "Failed to load user keys",
+    "distributedKeys.errors.create": "Failed to create user key",
+    "distributedKeys.errors.update": "Failed to update user key",
+    "distributedKeys.errors.rotate": "Failed to rotate user key",
+    "distributedKeys.errors.delete": "Failed to delete user key",
+    "distributedKeys.errors.stats": "Failed to load user key stats",
+
     "units.minutes": "min",
     "units.days": "days",
     "units.seconds": "s",
@@ -197,6 +244,7 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "app.invalidMasterKey": "主密钥无效",
     "app.menu.dashboard": "仪表盘",
     "app.menu.keys": "密钥管理",
+    "app.menu.distributedKeys": "调用密钥",
     "app.menu.logs": "日志",
     "app.menu.settings": "设置",
     "app.menu.logout": "退出",
@@ -365,6 +413,51 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     "settings.messages.updated": "设置已更新",
     "settings.messages.masterKeyReset": "主密钥重置成功",
 
+    "distributedKeys.title": "调用密钥管理",
+    "distributedKeys.subtitle":
+      "创建并分发调用密钥，支持每个密钥独立限流与调用统计。",
+    "distributedKeys.refresh": "刷新",
+    "distributedKeys.create": "新建调用密钥",
+    "distributedKeys.unlimited": "不限流",
+    "distributedKeys.expiresAt": "到期",
+    "distributedKeys.neverExpires": "永不过期",
+    "distributedKeys.expired": "已过期",
+    "distributedKeys.table.name": "名称",
+    "distributedKeys.table.keyPrefix": "密钥前缀",
+    "distributedKeys.table.rateLimit": "限流",
+    "distributedKeys.table.status": "状态",
+    "distributedKeys.table.usage": "用量",
+    "distributedKeys.table.actions": "操作",
+    "distributedKeys.form.name": "名称",
+    "distributedKeys.form.note": "备注",
+    "distributedKeys.form.rateLimit": "限流（每分钟，0 表示不限流）",
+    "distributedKeys.form.expiresAt": "到期时间",
+    "distributedKeys.form.clearExpiresAt": "清除到期时间",
+    "distributedKeys.createModal.title": "新建调用密钥",
+    "distributedKeys.createModal.submit": "创建",
+    "distributedKeys.editModal.title": "编辑调用密钥",
+    "distributedKeys.editModal.submit": "保存",
+    "distributedKeys.secretModal.title": "调用密钥（仅展示一次）",
+    "distributedKeys.secretModal.warning":
+      "该密钥仅展示一次，请立即复制并妥善保存。",
+    "distributedKeys.stats.title": "调用密钥统计",
+    "distributedKeys.stats.total": "总请求",
+    "distributedKeys.stats.days": "统计区间",
+    "distributedKeys.units.perMinute": "/分",
+    "distributedKeys.confirm.rotate":
+      "确认立即轮换该密钥？旧密钥会立即失效。",
+    "distributedKeys.confirm.delete": "确认删除该密钥？操作不可恢复。",
+    "distributedKeys.messages.created": "调用密钥已创建",
+    "distributedKeys.messages.updated": "调用密钥已更新",
+    "distributedKeys.messages.rotated": "调用密钥已轮换",
+    "distributedKeys.messages.deleted": "调用密钥已删除",
+    "distributedKeys.errors.load": "加载调用密钥失败",
+    "distributedKeys.errors.create": "创建调用密钥失败",
+    "distributedKeys.errors.update": "更新调用密钥失败",
+    "distributedKeys.errors.rotate": "轮换调用密钥失败",
+    "distributedKeys.errors.delete": "删除调用密钥失败",
+    "distributedKeys.errors.stats": "加载调用密钥统计失败",
+
     "units.minutes": "分钟",
     "units.days": "天",
     "units.seconds": "秒",
@@ -378,7 +471,7 @@ function normalizeLocale(value: unknown): Locale {
 
 function detectBrowserLocale(): Locale {
   const nav =
-    typeof navigator !== "undefined" && typeof navigator.language === "string"
+    typeof navigator !== "undefined"
       ? navigator.language
       : "";
   if (nav.toLowerCase().startsWith("zh")) return "zh-CN";
@@ -413,7 +506,7 @@ function interpolate(
   params?: Record<string, unknown>,
 ): string {
   if (!params) return template;
-  return template.replace(/\{(\w+)\}/g, (match, key) => {
+  return template.replace(/\{(\w+)}/g, (match, key) => {
     const value = params[key];
     if (value === undefined || value === null) return match;
     return String(value);

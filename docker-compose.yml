@@ -10,6 +10,10 @@ services:
       - DATABASE_PATH=/app/data/proxy.db
       - TAVILY_BASE_URL=https://api.tavily.com
       - UPSTREAM_TIMEOUT=30s
+      # Optional: use this as initial master key on first startup.
+      - MASTER_KEY=replace_with_your_master_key
+      # Optional: enable distributed user-key feature (16/24/32 raw bytes, or base64/base64url-decoded to 16/24/32 bytes).
+      - USER_KEY_ENCRYPTION_KEY=replace_with_32_byte_or_base64_key
     volumes:
       - ./data:/app/data
       # Sync host timezone (Linux): mount host timezone files into container.

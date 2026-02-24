@@ -72,6 +72,7 @@
                 :refresh-nonce="dashboardRefreshNonce"
               />
               <KeyManagementView v-else-if="active === 'keys'" />
+              <DistributedKeysView v-else-if="active === 'distributed-keys'" />
               <LogsView v-else-if="active === 'logs'" />
               <SettingsView v-else />
             </div>
@@ -119,18 +120,22 @@ import {
   ListOutline,
   LogOutOutline,
   MoonOutline,
+  PeopleOutline,
   SettingsOutline,
   SunnyOutline,
 } from "@vicons/ionicons5";
 import MasterKeyModal from "./components/MasterKeyModal.vue";
 import DashboardView from "./views/DashboardView.vue";
 import KeyManagementView from "./views/KeyManagementView.vue";
+import DistributedKeysView from "./views/DistributedKeysView.vue";
 import LogsView from "./views/LogsView.vue";
 import SettingsView from "./views/SettingsView.vue";
 import { api, clearMasterKey, getMasterKey, setMasterKey } from "./api/client";
 import { locale, setLocale, t } from "./i18n";
 
-const active = ref<"dashboard" | "keys" | "logs" | "settings">("dashboard");
+const active = ref<
+  "dashboard" | "keys" | "distributed-keys" | "logs" | "settings"
+>("dashboard");
 const collapsed = ref(false);
 const theme = ref<any>(null);
 
@@ -209,6 +214,11 @@ const menuOptions = computed(() => [
     icon: renderIcon(BarChartOutline),
   },
   { label: t("app.menu.keys"), key: "keys", icon: renderIcon(KeyOutline) },
+  {
+    label: t("app.menu.distributedKeys"),
+    key: "distributed-keys",
+    icon: renderIcon(PeopleOutline),
+  },
   { label: t("app.menu.logs"), key: "logs", icon: renderIcon(ListOutline) },
   {
     label: t("app.menu.settings"),

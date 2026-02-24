@@ -8,8 +8,13 @@ ROOT_DIR=$(pwd)
 
 echo "Building web frontend..."
 cd "$ROOT_DIR/web"
-npm install
-npm run build
+if command -v bun >/dev/null 2>&1; then
+  bun install
+  bun run build
+else
+  npm install
+  npm run build
+fi
 
 echo "Preparing server public directory..."
 mkdir -p "$ROOT_DIR/server/public"

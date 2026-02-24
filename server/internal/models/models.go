@@ -31,6 +31,32 @@ type RequestLog struct {
 	CreatedAt         time.Time `gorm:"index" json:"created_at"`
 }
 
+type DistributedKey struct {
+	ID                 uint       `gorm:"primaryKey" json:"id"`
+	Name               string     `gorm:"not null" json:"name"`
+	Note               string     `gorm:"type:text" json:"note"`
+	TokenHash          string     `gorm:"size:64;uniqueIndex;not null" json:"-"`
+	Ciphertext         string     `gorm:"type:text;not null" json:"-"`
+	KeyPrefix          string     `gorm:"size:64;not null" json:"key_prefix"`
+	IsActive           bool       `gorm:"not null;default:true" json:"is_active"`
+	ExpiresAt          *time.Time `json:"expires_at"`
+	RateLimitPerMinute int        `gorm:"not null;default:60" json:"rate_limit_per_minute"`
+	LastUsedAt         *time.Time `json:"last_used_at"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+type DistributedKeyUsageDaily struct {
+	ID               uint      `gorm:"primaryKey" json:"id"`
+	DistributedKeyID uint      `gorm:"not null;index:idx_distributed_key_usage_daily,unique" json:"distributed_key_id"`
+	Date             string    `gorm:"size:10;not null;index:idx_distributed_key_usage_daily,unique" json:"date"`
+	TotalCount       int64     `gorm:"not null;default:0" json:"total_count"`
+	Status2xx        int64     `gorm:"column:status_2xx;not null;default:0" json:"status_2xx"`
+	Status4xx        int64     `gorm:"column:status_4xx;not null;default:0" json:"status_4xx"`
+	Status5xx        int64     `gorm:"column:status_5xx;not null;default:0" json:"status_5xx"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
 type RequestStat struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	Granularity string    `gorm:"not null;index:idx_request_stat_bucket,unique" json:"granularity"`

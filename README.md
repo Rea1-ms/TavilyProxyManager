@@ -10,6 +10,10 @@
 
 - **透明代理**：完整转发至 `https://api.tavily.com`（支持所有路径与方法）。
 - **Master Key 鉴权**：客户端通过 `Authorization: Bearer <MasterKey>` 安全访问。
+- **分发 User Key**：
+  - 后台创建调用专用 Key（可备注、可停用、可设置过期时间）。
+  - 每个 User Key 独立限流（`rate_limit_per_minute`，`0` 表示不限流）。
+  - 按 User Key 统计总请求数与状态码分布（2xx/4xx/5xx）。
 - **智能 Key 池管理**：
   - 优先使用剩余额度最高的 Key。
   - 同额度 Key 随机打散，有效防止请求过于集中触发频率限制。
@@ -27,7 +31,7 @@
 ## 🛠️ 环境要求
 
 - **Docker / Docker Compose** (推荐部署方式，无需本地环境)
-- **Go**: `1.23+` & **Node.js**: `20+` (仅用于本地手动编译)
+- **Go**: `1.23+` & **Bun**: `1.2+`（或 **Node.js**: `20+`，仅用于本地手动编译）
 
 ---
 
@@ -52,6 +56,8 @@ services:
       - DATABASE_PATH=/app/data/proxy.db
       - TAVILY_BASE_URL=https://api.tavily.com
       - UPSTREAM_TIMEOUT=30s
+      - MASTER_KEY=replace_with_your_master_key
+      - USER_KEY_ENCRYPTION_KEY=replace_with_32_byte_or_base64_key
     volumes:
       - ./data:/app/data
       - /etc/localtime:/etc/localtime:ro
@@ -72,6 +78,8 @@ docker run -d \
   -p 8080:8080 \
   -v $(pwd)/data:/app/data \
   -e DATABASE_PATH=/app/data/proxy.db \
+  -e MASTER_KEY=replace_with_your_master_key \
+  -e USER_KEY_ENCRYPTION_KEY=replace_with_32_byte_or_base64_key \
   ghcr.io/xuncv/tavilyproxymanager:main
 ```
 
@@ -79,7 +87,12 @@ docker run -d \
 
 ## 🔑 首次运行：获取 Master Key
 
-服务在**首次启动**时会自动生成一个随机的 **Master Key**，用于后续登录管理面板和调用 API。
+服务在**首次启动**时：
+
+- 如果配置了 `MASTER_KEY`，将使用该值作为初始 Master Key。
+- 如果未配置 `MASTER_KEY`，会自动生成一个随机 Master Key。
+
+该 Key 用于后续登录管理面板和调用 API。
 
 您可以通过以下命令查看控制台日志来获取它：
 
@@ -104,7 +117,7 @@ docker logs tavily-proxy 2>&1 | grep "master key"
     ```
 2.  **启动前端**:
     ```bash
-    cd web && npm install && npm run dev
+    cd web && bun install && bun run dev
     ```
 
 **手动编译二进制产物**:
@@ -135,8 +148,20 @@ curl -X POST "http://localhost:8080/search" \
 
 **兼容性说明**:
 
-- 支持 `{"api_key": "<MASTER_KEY>"}` 或 `{"apiKey": "<MASTER_KEY>"}`。
-- 支持 GET 参数 `?api_key=<MASTER_KEY>`。
+- `Master Key` 支持 `{"api_key": "<MASTER_KEY>"}` 或 `{"apiKey": "<MASTER_KEY>"}`。
+- `Master Key` 支持 GET 参数 `?api_key=<MASTER_KEY>`。
+- `User Key` 仅支持 `Authorization: Bearer <USER_KEY>`，不支持 body/query 传参。
+
+### 分发 User Key 调用
+
+在 Web UI 的“调用密钥”页面创建并分发 User Key 后，调用示例：
+
+```bash
+curl -X POST "http://localhost:8080/search" \
+  -H "Authorization: Bearer <USER_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "AI agent 安全实践", "search_depth": "basic"}'
+```
 
 ### MCP (Model Context Protocol)
 
@@ -176,6 +201,27 @@ curl -X POST "http://localhost:8080/search" \
 | `UPSTREAM_TIMEOUT` | 上游请求超时时间     | `150s`                   |
 | `MCP_STATELESS`    | MCP 是否无状态模式   | `true`                   |
 | `MCP_SESSION_TTL`  | MCP 会话空闲超时     | `10m`                    |
+| `MASTER_KEY` | 首次启动时可选指定初始 Master Key（数据库已存在时忽略） | 空 |
+| `USER_KEY_ENCRYPTION_KEY` | User Key 加密主密钥（仅在启用分发 User Key 功能时需要） | 空（未配置则分发 User Key 功能关闭） |
+| `USER_KEY_RATE_LIMIT_WINDOW` | User Key 限流窗口 | `1m` |
+| `USER_KEY_RATE_LIMIT_DEFAULT` | 新建 User Key 默认每分钟限额（`0` 表示不限流） | `60` |
+
+### `USER_KEY_ENCRYPTION_KEY` 格式要求
+
+- 可选；留空表示关闭分发 User Key 功能。
+- 若设置，则必须满足以下之一：
+  - 原始密钥字节长度为 `16` / `24` / `32`（对应 AES-128/192/256）。
+  - Base64 / Base64URL 解码后字节长度为 `16` / `24` / `32`。
+- 若配置了但长度不合法，服务会启动失败并报错。
+- 建议使用 `32` 字节随机值（AES-256），并使用 Base64 保存。
+
+PowerShell 生成 32 字节随机 Base64 示例：
+
+```powershell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
 
 ---
 

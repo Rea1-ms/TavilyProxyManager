@@ -1,8 +1,13 @@
 $ErrorActionPreference = "Stop"
 
 Push-Location web
-npm install
-npm run build
+if (Get-Command bun -ErrorAction SilentlyContinue) {
+    bun install
+    bun run build
+} else {
+    npm install
+    npm run build
+}
 Pop-Location
 
 New-Item -ItemType Directory -Force -Path server/public | Out-Null
