@@ -37,6 +37,20 @@ env/
 config.yaml
 email.txt
 *.log
+api_keys.txt
+failed.txt
+banned_domains.txt
+
+# Test and debug files
+debug_*.html
+debug_*.png
+test_output/
+benchmark_results/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
 
 # AI/Editor tools
 .zencoder/
@@ -45,6 +59,3 @@ email.txt
 # OS files
 .DS_Store
 Thumbs.db
-api_keys.txt
-config.yaml
-failed.txt

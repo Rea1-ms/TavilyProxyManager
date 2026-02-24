@@ -1,4 +1,7 @@
-# 支持视觉的大模型
+# YesCaptcha 验证码识别服务（推荐，速度快）
+YESCAPTCHA_API_KEY: your_yescaptcha_api_key
+
+# 支持视觉的大模型（备用方案，如果未配置 YesCaptcha 则使用此方案）
 OPENAI_BASEURL: https://example.com/v1
 OPENAI_API_KEY: key
 OPENAI_MODEL: gemini-3-flash

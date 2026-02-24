@@ -261,9 +261,102 @@ def fetch_page_with_captcha(session: requests.Session, url: str) -> dict:
     return result
 
 
+def recognize_captcha_with_yescaptcha(captcha_base64: str, config: dict) -> str:
+    """
+    使用 YesCaptcha 识别验证码
+
+    Args:
+        captcha_base64: base64编码的验证码图片(SVG格式)
+        config: 配置字典
+
+    Returns:
+        识别出的验证码文本
+    """
+    print(f"[6] 使用 YesCaptcha 识别验证码...")
+
+    # 先将SVG转换为PNG（YesCaptcha 需要 PNG/JPG 格式）
+    print("    转换SVG为PNG...")
+    png_base64 = svg_to_png_base64(captcha_base64)
+    if not png_base64:
+        print("    错误: SVG转PNG失败，请安装 svglib+reportlab")
+        return None
+
+    print(f"    PNG大小: {len(png_base64)} bytes")
+
+    yescaptcha_key = config.get('YESCAPTCHA_API_KEY')
+    if not yescaptcha_key:
+        print("    错误: 未配置 YESCAPTCHA_API_KEY")
+        return None
+
+    api_url = "https://api.yescaptcha.com"
+
+    try:
+        # 1. 创建识别任务
+        print("    提交验证码识别任务...")
+        create_response = requests.post(
+            f"{api_url}/createTask",
+            json={
+                "clientKey": yescaptcha_key,
+                "task": {
+                    "type": "ImageToTextTask",
+                    "body": png_base64,
+                }
+            },
+            timeout=30
+        )
+        create_data = create_response.json()
+
+        if create_data.get("errorId") != 0:
+            print(f"    错误: 创建任务失败 - {create_data.get('errorDescription')}")
+            return None
+
+        task_id = create_data.get("taskId")
+        print(f"    任务ID: {task_id}")
+
+        # 2. 轮询获取结果
+        max_wait_time = 60  # 最多等待60秒
+        start_time = time.time()
+
+        while time.time() - start_time < max_wait_time:
+            time.sleep(3)  # 每3秒查询一次
+
+            result_response = requests.post(
+                f"{api_url}/getTaskResult",
+                json={
+                    "clientKey": yescaptcha_key,
+                    "taskId": task_id
+                },
+                timeout=30
+            )
+            result_data = result_response.json()
+
+            status = result_data.get("status")
+            if status == "ready":
+                captcha_text = result_data.get("solution", {}).get("text", "")
+                # 清理结果，只保留字母和数字
+                captcha_text = re.sub(r'[^A-Za-z0-9]', '', captcha_text)
+                print(f"    识别结果: {captcha_text}")
+                return captcha_text
+            elif status == "processing":
+                print("    识别中...")
+            else:
+                print(f"    错误: 识别失败 - {result_data}")
+                return None
+
+        print("    错误: 识别超时")
+        return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"    错误: API请求失败 - {e}")
+        return None
+    except (KeyError, ValueError) as e:
+        print(f"    错误: 解析响应失败 - {e}")
+        return None
+
+
 def recognize_captcha_with_vision(captcha_base64: str, config: dict) -> str:
     """
-    使用视觉大模型识别验证码
+    使用视觉大模型识别验证码（已弃用，保留用于兼容）
 
     Args:
         captcha_base64: base64编码的验证码图片(SVG格式)
@@ -732,7 +825,12 @@ def login_after_verification(session: requests.Session, email: str, password: st
         print(f"    找到验证码")
 
         # Step 3: 识别验证码
-        captcha_text = recognize_captcha_with_vision(captcha_base64, config)
+        # 优先使用 YesCaptcha，如果未配置则回退到视觉模型
+        if config.get('YESCAPTCHA_API_KEY'):
+            captcha_text = recognize_captcha_with_yescaptcha(captcha_base64, config)
+        else:
+            captcha_text = recognize_captcha_with_vision(captcha_base64, config)
+
         if not captcha_text:
             result["error"] = "验证码识别失败"
             print(f"    {result['error']}")
@@ -1681,7 +1779,12 @@ def signup(
                 continue
 
             # Step 3: 识别验证码
-            captcha_text = recognize_captcha_with_vision(page_info["captcha_base64"], config)
+            # 优先使用 YesCaptcha，如果未配置则回退到视觉模型
+            if config.get('YESCAPTCHA_API_KEY'):
+                captcha_text = recognize_captcha_with_yescaptcha(page_info["captcha_base64"], config)
+            else:
+                captcha_text = recognize_captcha_with_vision(page_info["captcha_base64"], config)
+
             if not captcha_text:
                 result["error"] = "验证码识别失败"
                 continue

@@ -24,11 +24,24 @@ uv sync
 `signup.py` 会从仓库根目录读取 `config.yaml`（已在 `.gitignore` 中忽略）。示例：
 
 ```yaml
-# OpenAI 兼容的 Chat Completions 接口（用于图像/验证码识别等测试场景）
+# YesCaptcha 验证码识别服务（推荐，速度快、准确率高）
+YESCAPTCHA_API_KEY: "your_yescaptcha_api_key"
+
+# OpenAI 兼容的 Chat Completions 接口（备用方案，如果未配置 YesCaptcha 则使用）
 OPENAI_BASEURL: "https://example.com/v1"
 OPENAI_API_KEY: "YOUR_API_KEY"
 OPENAI_MODEL: "YOUR_MODEL"
 ```
+
+**验证码识别方案说明：**
+
+- **YesCaptcha（推荐）**：专业验证码识别服务，速度快（3-10秒），准确率高
+  - 获取 API Key：访问 [YesCaptcha](https://yescaptcha.com/) 注册账号
+  - 配置后程序会自动优先使用 YesCaptcha
+
+- **视觉大模型（备用）**：使用支持视觉的大模型识别验证码，速度较慢（10-30秒）
+  - 如果未配置 YesCaptcha，程序会自动回退到此方案
+  - 需要配置 OpenAI 兼容的 API 接口
 
 ### 2) 临时邮箱环境变量（可选）
 
@@ -40,7 +53,22 @@ OPENAI_MODEL: "YOUR_MODEL"
 - `GPTMAIL_PREFIX`
 - `GPTMAIL_DOMAIN`
 
-## 运行
+## 快速开始
+
+### 1. 测试配置
+
+运行测试脚本验证 YesCaptcha 配置是否正确：
+
+```bash
+uv run python test_yescaptcha.py
+```
+
+测试脚本会检查：
+- ✓ 配置文件是否正确
+- ✓ SVG 转 PNG 功能是否可用
+- ✓ YesCaptcha API 连接是否正常
+
+### 2. 批量注册
 
 查看参数：
 
@@ -48,16 +76,24 @@ OPENAI_MODEL: "YOUR_MODEL"
 uv run python batch_signup.py --help
 ```
 
-脚本内置临时邮箱的共享key，批量注册
+脚本内置临时邮箱的共享key，批量注册：
 
-```
-uv run python batch_signup.py
+```bash
+uv run python batch_signup.py --count 10
 ```
 
-如共享key额度用完，可以到https://mail.chatgpt.org.uk获取
+如共享key额度用完，可以到 https://mail.chatgpt.org.uk 获取：
 
+```bash
+uv run python batch_signup.py --gptmail-api-key your_own_key --count 10
 ```
-uv run python batch_signup.py --gptmail-api-key your_own_key
+
+### 3. 重试失败的注册
+
+如果有注册失败的记录，可以重试：
+
+```bash
+uv run python batch_signup.py --retry
 ```
 
 
@@ -70,7 +106,29 @@ uv run python batch_signup.py --gptmail-api-key your_own_key
 
 ## 常见问题
 
+### 验证码识别相关
+
+- **YesCaptcha 识别失败**：
+  - 检查 API Key 是否正确配置
+  - 确认账户余额是否充足
+  - 运行 `python test_yescaptcha.py` 进行诊断
+
+- **想切换回视觉模型**：
+  - 从 `config.yaml` 中删除或注释 `YESCAPTCHA_API_KEY`
+  - 确保 `OPENAI_*` 配置正确
+
+- **识别速度慢**：
+  - YesCaptcha 通常 3-10 秒完成识别
+  - 视觉模型可能需要 10-30 秒
+  - 建议使用 YesCaptcha 以提升效率
+
+### 注册相关
+
 - `ip-signup-blocked`：表示当前出口 IP 被禁止注册。脚本会终止批量流程
-- `custom-script-error-code_extensibility_error`：通常表示当前邮箱域名被禁止。脚本会将域名写入 `banned_domains.txt` 并在自动生成邮箱模式下重新获取邮箱重试。
+- `custom-script-error-code_extensibility_error`：通常表示当前邮箱域名被禁止。脚本会将域名写入 `banned_domains.txt` 并在自动生成邮箱模式下重新获取邮箱重试
 - `invalid-captcha`：验证码识别结果不正确。可考虑降低并发、增加重试间隔
-- `tavily`调整了策略，一个ip一段时间内只能注册5个，请勿滥用
+- `tavily` 调整了策略，一个 IP 一段时间内只能注册 5 个，请勿滥用
+
+## 更多文档
+
+- [YesCaptcha 使用说明](YESCAPTCHA_USAGE.md) - 详细的 YesCaptcha 配置和使用指南
