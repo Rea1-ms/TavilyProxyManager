@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -72,12 +71,11 @@ func (s *StatsService) Get(ctx context.Context) (Stats, error) {
 	var todayRequests int64
 	{
 		var rs models.RequestStat
-		err := s.db.WithContext(ctx).First(&rs, "granularity = ? AND bucket = ? AND endpoint = ?", "day", todayBucket, "").Error
-		if err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return Stats{}, err
-			}
-		} else {
+		tx := s.db.WithContext(ctx).Where("granularity = ? AND bucket = ? AND endpoint = ?", "day", todayBucket, "").Limit(1).Find(&rs)
+		if tx.Error != nil {
+			return Stats{}, tx.Error
+		}
+		if tx.RowsAffected > 0 {
 			todayRequests = rs.Count
 		}
 	}
