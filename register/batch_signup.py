@@ -20,7 +20,7 @@ from signup import (
 )
 
 # 配置
-OUTPUT_FILE = "api_keys.txt"
+OUTPUT_FILE = "accounts.txt"
 FAILED_FILE = "failed.txt"
 BANNED_DOMAINS_FILE = "banned_domains.txt"
 PASSWORD = "Tavily@2024Test"
@@ -55,10 +55,31 @@ def _extract_first_api_key(keys) -> str | None:
     return None
 
 
-def save_result(file_path: str, email: str, api_key: str, mode: str = 'a'):
-    """保存结果到文件"""
-    with open(file_path, mode, encoding='utf-8') as f:
-        f.write(f"{email}----{api_key}\n")
+def save_result(file_path: str, email: str, api_key: str, password: str = None, mode: str = 'a'):
+    """
+    保存结果到文件
+
+    会同时保存到两个文件：
+    1. accounts.txt - 完整账号信息（邮箱----密码----apikey）
+    2. api_keys.txt - 仅 API Key（每行一个）
+    """
+    import os
+
+    # 获取目录路径
+    output_dir = os.path.dirname(file_path) or '.'
+
+    # 保存完整账号信息到 accounts.txt
+    accounts_file = os.path.join(output_dir, 'accounts.txt')
+    with open(accounts_file, mode, encoding='utf-8') as f:
+        if password:
+            f.write(f"{email}----{password}----{api_key}\n")
+        else:
+            f.write(f"{email}----{api_key}\n")
+
+    # 保存仅 API Key 到 api_keys.txt
+    apikeys_file = os.path.join(output_dir, 'api_keys.txt')
+    with open(apikeys_file, mode, encoding='utf-8') as f:
+        f.write(f"{api_key}\n")
 
 
 def save_failed(file_path: str, email: str, error: str, mode: str = 'a'):
@@ -439,7 +460,7 @@ def batch_signup(
                         if result.get("success") and result.get("api_keys"):
                             api_key = _extract_first_api_key(result.get("api_keys"))
                             if api_key:
-                                save_result(output_file, email, api_key)
+                                save_result(output_file, email, api_key, password)
                                 print(f"\n成功! API Key: {api_key[:15]}...{api_key[-4:]}")
                                 success_count += 1
                                 break
@@ -457,7 +478,7 @@ def batch_signup(
                                 debug_init=debug_init,
                             )
                             if api_key:
-                                save_result(output_file, email, api_key)
+                                save_result(output_file, email, api_key, password)
                                 print(f"\n成功! API Key: {api_key[:15]}...{api_key[-4:]}")
                                 success_count += 1
                             else:
@@ -508,7 +529,7 @@ def batch_signup(
                         # 尝试登录获取API Key（邮箱可能已经注册）
                         api_key = try_login_get_key(email, password, config, debug_init=debug_init)
                         if api_key:
-                            save_result(output_file, email, api_key)
+                            save_result(output_file, email, api_key, password)
                             print(f"\n通过登录获取成功! API Key: {api_key[:15]}...{api_key[-4:]}")
                             success_count += 1
                         else:

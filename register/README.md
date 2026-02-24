@@ -88,7 +88,19 @@ uv run python batch_signup.py --count 10
 uv run python batch_signup.py --gptmail-api-key your_own_key --count 10
 ```
 
-### 3. 重试失败的注册
+### 3. 查看结果
+
+注册成功后会生成两个文件：
+
+```bash
+# 查看完整账号信息（邮箱----密码----API Key）
+cat accounts.txt
+
+# 查看仅 API Key（每行一个，方便复制）
+cat api_keys.txt
+```
+
+### 4. 重试失败的注册
 
 如果有注册失败的记录，可以重试：
 
@@ -100,7 +112,8 @@ uv run python batch_signup.py --retry
 
 ## 输出文件
 
-- `api_keys.txt`：成功记录（邮箱与 key）
+- `accounts.txt`：完整账号信息（邮箱----密码----API Key）
+- `api_keys.txt`：仅 API Key（每行一个，方便复制）
 - `failed.txt`：失败记录（邮箱与错误信息）
 - `banned_domains.txt`：被判定为不可用的域名黑名单
 

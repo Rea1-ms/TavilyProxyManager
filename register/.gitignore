@@ -37,6 +37,7 @@ env/
 config.yaml
 email.txt
 *.log
+accounts.txt
 api_keys.txt
 failed.txt
 banned_domains.txt
